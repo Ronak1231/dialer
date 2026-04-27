@@ -1,42 +1,49 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Auto Dialer</title>
-</head>
-<body>
-
 <script src="https://app.ainvox.com/web-client/ainvox-dialer.js"></script>
 
 <script>
 const params = new URLSearchParams(window.location.search);
-let number = params.get("number");
+const client = params.get("number");
 
-if (number) {
+// 👇 IMPORTANT: your agent number
+const agent = "+918623977171";
 
-    console.log("Client Number:", number);
+const ainvox = new AinvoxDialer();
 
-    const ainvox = new AinvoxDialer();
-
-    async function startCall() {
-        try {
-            console.log("Opening dialer...");
-            await ainvox.open();
-
-            // wait for UI + socket ready
-            setTimeout(async () => {
-                console.log("Calling client via agent...");
-                await ainvox.call(number, true); // TRUE = agent first, then client
-            }, 2000);
-
-        } catch (err) {
-            console.error("Call error:", err);
-        }
-    }
-
-    // small delay for iframe init
-    setTimeout(startCall, 1000);
+async function waitForDialerReady() {
+    return new Promise((resolve) => {
+        const listener = (event) => {
+            if (event.data && event.data.command === "ready") {
+                console.log("✅ Dialer fully ready");
+                window.removeEventListener("message", listener);
+                resolve();
+            }
+        };
+        window.addEventListener("message", listener);
+    });
 }
-</script>
 
-</body>
-</html>
+async function startCall() {
+    try {
+        console.log("Opening dialer...");
+        await ainvox.open();
+
+        // 🔥 WAIT FOR REAL READY (NOT timeout)
+        await waitForDialerReady();
+
+        console.log("Calling agent first...");
+        await ainvox.call(agent, true);
+
+        // 👇 small delay AFTER agent call
+        setTimeout(async () => {
+            console.log("Calling client...");
+            await ainvox.call(client, true);
+        }, 5000);
+
+    } catch (e) {
+        console.error("Error:", e);
+    }
+}
+
+// slight delay for iframe init
+setTimeout(startCall, 1000);
+</script>
