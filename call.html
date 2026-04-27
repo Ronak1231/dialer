@@ -7,79 +7,59 @@ const agent = (params.get("agent") || "").trim();
 
 const ainvox = new AinvoxDialer();
 
-function normalizeNumber(value) {
-    return String(value || "").replace(/[^0-9+]/g, "");
+function toIndiaE164(value) {
+    var digits = String(value || "").replace(/\D/g, "");
+
+    if (!digits) return "";
+
+    if (digits.length === 11 && digits.charAt(0) === "0") {
+        digits = digits.substring(1);
+    }
+
+    if (digits.length === 12 && digits.indexOf("91") === 0) {
+        return "+" + digits;
+    }
+
+    if (digits.length === 10) {
+        return "+91" + digits;
+    }
+
+    return "";
 }
 
 function wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForDialerReady(timeoutMs = 12000) {
-    return new Promise((resolve) => {
-        let done = false;
-
-        const cleanup = () => {
-            window.removeEventListener("message", listener);
-            clearTimeout(timer);
-        };
-
-        const finish = () => {
-            if (done) return;
-            done = true;
-            cleanup();
-            resolve();
-        };
-
-        const listener = (event) => {
-            if (event.data && event.data.command === "ready") {
-                console.log("✅ Dialer fully ready");
-                finish();
-            }
-        };
-
-        const timer = setTimeout(() => {
-            console.warn("⏱ Ready event timeout. Proceeding with fallback delay.");
-            finish();
-        }, timeoutMs);
-
-        window.addEventListener("message", listener);
-    });
-}
-
 async function startCall() {
     try {
-        const clientNumber = normalizeNumber(client);
-        const agentNumber = normalizeNumber(agent);
+        const clientNumber = toIndiaE164(client);
+        const agentNumber = toIndiaE164(agent);
 
         if (!clientNumber) {
             console.error("❌ Missing or invalid client number in URL param 'number'.");
             return;
         }
 
-        // Attach ready listener before open so we don't miss one-time ready signal.
-        const readyPromise = waitForDialerReady();
+        if (!agentNumber) {
+            console.error("❌ Missing or invalid agent number in URL param 'agent'.");
+            return;
+        }
 
         console.log("Opening dialer...");
         await ainvox.open();
+        await wait(1000);
 
-        // Wait for actual ready event, with timeout fallback.
-        await readyPromise;
-        await wait(300);
+        console.log("Calling agent first...");
+        await ainvox.call(agentNumber, true);
 
-        if (agentNumber) {
-            console.log("Calling agent first...");
-            await ainvox.call(agentNumber, true);
+        await wait(5000);
 
-            // Small delay after first leg
-            await wait(5000);
-        } else {
-            console.log("No agent passed from URL. Using logged-in Ainvox user identity for direct client call.");
-        }
+        await ainvox.open();
+        await wait(500);
 
         console.log("Calling client...");
-        // If agent leg is present, use second leg/bridge; otherwise initiate direct call.
-        await ainvox.call(clientNumber, !!(!agentNumber));
+        await ainvox.call(clientNumber, false);
 
     } catch (e) {
         console.error("Error:", e);
