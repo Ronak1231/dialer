@@ -48,18 +48,18 @@ async function startCall() {
 
         console.log("Opening dialer...");
         await ainvox.open();
-        await wait(200);
+        await wait(1000);
 
         console.log("Calling agent first...");
         await ainvox.call(agentNumber, true);
 
-        await wait(200);
+        await wait(5000);
 
         await ainvox.open();
         await wait(500);
 
-        console.log("Calling client...");
-        await ainvox.call(clientNumber, false);
+        console.log("Calling client (auto)...");
+        await ainvox.call(clientNumber, true);
 
     } catch (e) {
         console.error("Error:", e);
