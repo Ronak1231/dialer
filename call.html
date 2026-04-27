@@ -3,9 +3,7 @@
 <script>
 const params = new URLSearchParams(window.location.search);
 const client = (params.get("number") || "").trim();
-
-// 👇 IMPORTANT: your agent number
-const agent = "+918623977171";
+const agent = (params.get("agent") || "").trim();
 
 const ainvox = new AinvoxDialer();
 
@@ -59,11 +57,6 @@ async function startCall() {
             return;
         }
 
-        if (!agentNumber) {
-            console.error("❌ Invalid agent number.");
-            return;
-        }
-
         // Attach ready listener before open so we don't miss one-time ready signal.
         const readyPromise = waitForDialerReady();
 
@@ -74,15 +67,19 @@ async function startCall() {
         await readyPromise;
         await wait(300);
 
-        console.log("Calling agent first...");
-        await ainvox.call(agentNumber, true);
+        if (agentNumber) {
+            console.log("Calling agent first...");
+            await ainvox.call(agentNumber, true);
 
-        // Small delay after first leg
-        await wait(5000);
+            // Small delay after first leg
+            await wait(5000);
+        } else {
+            console.log("No agent passed from URL. Using logged-in Ainvox user identity for direct client call.");
+        }
 
         console.log("Calling client...");
-        // second leg: add customer to bridge/dialer flow
-        await ainvox.call(clientNumber, false);
+        // If agent leg is present, use second leg/bridge; otherwise initiate direct call.
+        await ainvox.call(clientNumber, !!(!agentNumber));
 
     } catch (e) {
         console.error("Error:", e);
