@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Auto Dialer</title>
+</head>
+<body>
+
+<script src="https://app.ainvox.com/web-client/ainvox-dialer.js"></script>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+let number = params.get("number");
+
+if (number) {
+
+    console.log("Client Number:", number);
+
+    const ainvox = new AinvoxDialer();
+
+    async function startCall() {
+        try {
+            console.log("Opening dialer...");
+            await ainvox.open();
+
+            // wait for UI + socket ready
+            setTimeout(async () => {
+                console.log("Calling client via agent...");
+                await ainvox.call(number, true); // TRUE = agent first, then client
+            }, 2000);
+
+        } catch (err) {
+            console.error("Call error:", err);
+        }
+    }
+
+    // small delay for iframe init
+    setTimeout(startCall, 1000);
+}
+</script>
+
+</body>
+</html>
